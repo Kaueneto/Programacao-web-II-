@@ -9,6 +9,7 @@ import * as yup from "yup";
 import { Not, FindOptionsWhere } from "typeorm";
 import slugify from "slugify";
 
+
 /// deletar  produto pelo id
 router.delete("/products/:id", async (req: Request, res: Response) => {
   try {
@@ -114,9 +115,13 @@ router.post("/products", async (req: Request, res: Response) => {
     // Criar o produto com as relações corretas
     const newProduct = productRepository.create({
       name,
+      description: req.body.description,
+      slug: req.body.slug,
+      price: req.body.price,
       categories: category,
       situations: situation,
     });
+
 
     await productRepository.save(newProduct);
 
@@ -172,8 +177,10 @@ router.get("/products", async (req: Request, res: Response) => {
       productRepository,
       page,
       limit,
-      { id: "DESC" }
-    );
+      { id: "DESC" },
+      ["categories", "situations"]);
+
+
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ mensagem: "Erro ao listar todos produtos" });
@@ -222,8 +229,10 @@ router.put("/products/:id", async (req: Request, res: Response) => {
      //gerar slug automaticamente com base no nomne
     req.body.slug = slugify(req.body.slug, {lower:true, strict:true});
 
-    
     const productRepository = AppDataSource.getRepository(Products);
+    const categoryRepository = AppDataSource.getRepository(ProductCategory);
+    const situationRepository = AppDataSource.getRepository(ProductSituation);
+    
     //valida duplicidade
     const existingProduct = await productRepository.findOne({
       where: {
@@ -246,8 +255,31 @@ router.put("/products/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ mensagem: "Produto não encontrado" });
     }
 
-    if (data) product.name = data;
+  // Buscar categoria e situação
+    const category = await categoryRepository.findOneBy({
+      id: req.body.productCategoryId,
+    });
 
+    const situation = await situationRepository.findOneBy({
+      id: req.body.productSituationId,
+    });
+
+    if (!category || !situation) {
+      return res.status(400).json({
+        mensagem: "Categoria ou situação informada não existe.",
+      });
+    }
+
+    // Atualizar os valores
+    product.name = req.body.name;
+    product.slug = req.body.slug;
+    product.price = req.body.price;
+    product.description = req.body.description;
+
+    product.categories = category;
+    product.situations = situation;
+
+    // Salvar
     const updatedProduct = await productRepository.save(product);
 
     res

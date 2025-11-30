@@ -24,8 +24,8 @@ router.get("/users",verifyToken, async (req: Request, res: Response) => {
       userRepository,
       page,
       limit,
-      { id: "DESC" }
-      //["situation"]
+      { id: "DESC" },
+      ["situation"]
     );
 
     res.status(200).json(result);
